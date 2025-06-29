@@ -163,9 +163,92 @@ class TestProductRoutes(TestCase):
         response = self.client.post(BASE_URL, data={}, content_type="plain/text")
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
+    # ----------------------------------------------------------
+    # TEST READ
+    # ----------------------------------------------------------
+    def test_get_product(self):
+        """It should Read a Product"""
+        product = self._create_products()[0]
+        response = self.client.get(f"{BASE_URL}/{product.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        logging.debug("Product: %s", response.get_json())
+
+    def test_get_product_not_found(self):
+        """It should return 404 when Product is not found"""
+        response = self.client.get(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     #
     # ADD YOUR TEST CASES HERE
     #
+    def test_update_product(self):
+        """It should Update an existing Product"""
+        product = self._create_products()[0]
+        updated_data = product.serialize()
+        updated_data["name"] = "UpdatedName"
+        response = self.client.put(f"{BASE_URL}/{product.id}", json=updated_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data["name"], "UpdatedName")
+
+    def test_update_product_not_found(self):
+        """It should return 404 when updating a non-existent Product"""
+        product = ProductFactory()
+        updated_data = product.serialize()
+        response = self.client.put(f"{BASE_URL}/0", json=updated_data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_product(self):
+        """It should Delete a Product"""
+        product = self._create_products()[0]
+        response = self.client.delete(f"{BASE_URL}/{product.id}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Confirm it no longer exists
+        response = self.client.get(f"{BASE_URL}/{product.id}")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_product_not_found(self):
+        """It should return 404 when deleting a non-existent Product"""
+        response = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_list_all_products(self):
+        """It should List all Products"""
+        self._create_products(3)
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertGreaterEqual(len(data), 3)
+
+    def test_list_products_by_name(self):
+        """It should List Products by name"""
+        products = self._create_products(3)
+        name = products[0].name
+        response = self.client.get(f"{BASE_URL}?name={name}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        for prod in data:
+            self.assertEqual(prod["name"], name)
+
+    def test_list_products_by_category(self):
+        """It should List Products by category"""
+        products = self._create_products(3)
+        category = products[0].category.name
+        response = self.client.get(f"{BASE_URL}?category={category}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        for prod in data:
+            self.assertEqual(prod["category"], category)
+
+    def test_list_products_by_availability(self):
+        """It should List Products by availability"""
+        products = self._create_products(3)
+        available = products[0].available
+        response = self.client.get(f"{BASE_URL}?available={str(available).lower()}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        for prod in data:
+            self.assertEqual(prod["available"], available)
 
     ######################################################################
     # Utility functions
