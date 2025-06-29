@@ -101,6 +101,143 @@ class TestProductModel(unittest.TestCase):
         self.assertEqual(new_product.available, product.available)
         self.assertEqual(new_product.category, product.category)
 
-    #
-    # ADD YOUR TEST CASES HERE
-    #
+    def test_read_a_product(self):
+        """It should read a product"""
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+        found_product = Product.find(product.id)
+        self.assertEqual(found_product.id, product.id)
+        self.assertEqual(found_product.name, product.name)
+        self.assertEqual(found_product.description, product.description)
+        self.assertEqual(found_product.price, product.price)
+
+    def test_update_a_product(self):
+        """It should update a product"""
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        new_description = "Updated description"
+        product.description = new_description
+        product.update()
+        found = Product.find(product.id)
+        self.assertEqual(found.description, new_description)
+        self.assertEqual(found.id, product.id)
+        all_products = Product.all()
+        self.assertEqual(len(all_products), 1)
+        self.assertEqual(all_products[0].description, new_description)
+
+    def test_delete_product(self):
+        """It should delete a product"""
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertEqual(len(Product.all()), 1)
+        product.delete()
+        self.assertEqual(len(Product.all()), 0)
+
+    def test_list_all_products(self):
+        """It should list all products"""
+        self.assertEqual(len(Product.all()), 0)
+        for _ in range(5):
+            product = ProductFactory()
+            product.id = None
+            product.create()
+        self.assertEqual(len(Product.all()), 5)
+
+    def test_find_by_name(self):
+        """It should find products by name"""
+        products = [ProductFactory() for _ in range(5)]
+        for product in products:
+            product.id = None
+            product.create()
+        name = products[0].name
+        expected_count = sum(1 for p in products if p.name == name)
+        found = Product.find_by_name(name).all()
+        self.assertEqual(len(found), expected_count)
+        for product in found:
+            self.assertEqual(product.name, name)
+
+    def test_find_by_availability(self):
+        """It should find products by availability"""
+        products = [ProductFactory() for _ in range(10)]
+        for product in products:
+            product.id = None
+            product.create()
+        available = products[0].available
+        expected_count = sum(1 for p in products if p.available == available)
+        found = Product.find_by_availability(available).all()
+        self.assertEqual(len(found), expected_count)
+        for product in found:
+            self.assertEqual(product.available, available)
+
+    def test_find_by_category(self):
+        """It should find products by category"""
+        products = [ProductFactory() for _ in range(10)]
+        for product in products:
+            product.id = None
+            product.create()
+        category = products[0].category
+        expected_count = sum(1 for p in products if p.category == category)
+        found = Product.find_by_category(category).all()
+        self.assertEqual(len(found), expected_count)
+        for product in found:
+            self.assertEqual(product.category, category)
+
+    def test_deserialize_invalid_boolean(self):
+        """It should raise DataValidationError for invalid boolean type in deserialize"""
+        product = Product()
+        data = {
+            "name": "Test",
+            "description": "desc",
+            "price": "10.0",
+            "available": "not_a_bool",
+            "category": "CLOTHS"
+        }
+        with self.assertRaises(Exception) as context:
+            product.deserialize(data)
+        self.assertIn("Invalid type for boolean", str(context.exception))
+
+    def test_deserialize_invalid_attribute(self):
+        """It should raise DataValidationError for invalid category attribute in deserialize"""
+        product = Product()
+        data = {
+            "name": "Test",
+            "description": "desc",
+            "price": "10.0",
+            "available": True,
+            "category": "NOT_A_CATEGORY"
+        }
+        with self.assertRaises(Exception) as context:
+            product.deserialize(data)
+        self.assertIn("Invalid attribute", str(context.exception))
+
+    def test_deserialize_missing_key(self):
+        """It should raise DataValidationError for missing key in deserialize"""
+        product = Product()
+        data = {
+            "description": "desc",
+            "price": "10.0",
+            "available": True,
+            "category": "CLOTHS"
+        }
+        with self.assertRaises(Exception) as context:
+            product.deserialize(data)
+        self.assertIn("missing name", str(context.exception))
+
+    def test_deserialize_type_error(self):
+        """It should raise DataValidationError for type error in deserialize"""
+        product = Product()
+        with self.assertRaises(Exception) as context:
+            product.deserialize(None)
+        self.assertIn("body of request contained bad or no data", str(context.exception))
+
+    def test_find_by_category_unknown(self):
+        """It should return products with category UNKNOWN (even if none)"""
+        # Ensure at least one product with UNKNOWN
+        product = ProductFactory(category=Category.UNKNOWN)
+        product.id = None
+        product.create()
+        found = Product.find_by_category(Category.UNKNOWN).all()
+        self.assertTrue(any(p.category == Category.UNKNOWN for p in found))
